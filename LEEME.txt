@@ -1,0 +1,22 @@
+CONTROL DE GASOLINA - APK para Android
+======================================
+
+OPCION A (la mas facil, sin instalar nada): compilar en GitHub
+  1. Crea una cuenta gratis en github.com y un repositorio nuevo (ej. "control-gasolina").
+  2. Sube TODO el contenido de esta carpeta (incluida la carpeta oculta .github).
+     En la web: "Add file" > "Upload files" y arrastra todo.
+  3. Ve a la pestaña "Actions" > "Construir APK" > "Run workflow".
+  4. Espera 3-5 minutos. Al terminar, entra en la ejecucion y descarga
+     "ControlGasolina-apk" (un ZIP que contiene app-debug.apk).
+  5. Pasa el .apk al movil, abrelo y permite "instalar apps de origen desconocido".
+
+OPCION B: compilar en tu PC con Android Studio
+  1. Instala Node.js (nodejs.org) y Android Studio.
+  2. En esta carpeta, abre una terminal y ejecuta:
+        npm install
+        npx cap add android
+        npx cap sync android
+        npx cap open android
+  3. En Android Studio: Build > Build APK(s).
+
+Los datos se guardan dentro de la app, en el movil.

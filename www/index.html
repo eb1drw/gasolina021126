@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Control de Gasolina</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#12151A">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root{
+    --bg: #12151A;
+    --surface: #1B2027;
+    --surface-2: #232A33;
+    --line: #2C333D;
+    --text: #E9ECEF;
+    --muted: #8B93A1;
+    --amber: #FFB020;
+    --amber-dim: #7A5A1E;
+    --green: #4ADE80;
+    --red: #F0554D;
+    --radius: 14px;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% -10%, #23293380 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom: 40px; padding-top: env(safe-area-inset-top, 24px);
+  }
+
+  .app{ max-width:520px; margin:0 auto; padding:20px 16px 0; }
+
+  /* Header */
+  header{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px; }
+  header h1{
+    font-family:'Oswald', sans-serif; font-weight:700; letter-spacing:0.5px;
+    font-size:22px; margin:0; text-transform:uppercase;
+    color:var(--text);
+  }
+  header h1 span{ color:var(--amber); }
+  header .sub{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+  /* Vehicle tabs */
+  .tabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .tab{
+    flex:1; text-align:center; padding:10px 4px; border-radius:10px;
+    background:var(--surface); border:1px solid var(--line);
+    color:var(--muted); font-weight:600; font-size:13px;
+    cursor:pointer; transition:all .15s ease; position:relative; overflow:hidden;
+  }
+  .tab.active{
+    background:linear-gradient(180deg, #2A2110, var(--surface));
+    border-color:var(--amber-dim); color:var(--amber);
+  }
+  .tab .edit-name{
+    width:100%; background:transparent; border:none; color:inherit; font:inherit;
+    text-align:center; outline:none; text-transform:uppercase;
+    pointer-events:none; padding:2px 16px 2px 0;
+  }
+  .tab .edit-name.editing{ pointer-events:auto; }
+  .tab{ position:relative; }
+  .tab .pencil{
+    position:absolute; top:5px; right:6px; font-size:11px; color:var(--muted);
+    opacity:0.6; pointer-events:auto; padding:2px 4px;
+  }
+  .tab.active .pencil{ color:var(--amber); opacity:0.9; }
+
+  /* Dashboard cluster */
+  .cluster{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 16px;
+    margin-bottom:16px;
+    position:relative;
+  }
+  .cluster-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .cluster-top .name{ font-family:'Oswald'; font-size:18px; letter-spacing:0.5px; text-transform:uppercase; }
+  .cluster-top .odo{ font-family:'JetBrains Mono'; color:var(--muted); font-size:12px; }
+
+  .gauge-row{ display:flex; align-items:center; gap:16px; }
+  .gauge-wrap{ flex-shrink:0; }
+  .stats-mini{ flex:1; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stat{
+    background:#00000030; border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px;
+  }
+  .stat .label{ font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:2px; }
+  .stat .value{ font-family:'JetBrains Mono'; font-weight:700; font-size:16px; }
+  .stat .value.small{ font-size:13px; }
+  .stat .unit{ font-size:10px; color:var(--muted); font-weight:400; margin-left:2px; }
+
+  /* Form */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:16px;
+  }
+  .card h2{
+    font-family:'Oswald'; font-size:13px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--muted); margin:0 0 12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2::before{ content:''; width:3px; height:14px; background:var(--amber); border-radius:2px; display:inline-block; }
+
+  .field-row{ display:flex; gap:10px; margin-bottom:10px; }
+  .field{ flex:1; display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+  .field input{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+    padding:11px 10px; color:var(--text); font-size:15px; font-family:'JetBrains Mono';
+    width:100%; outline:none; transition:border-color .15s;
+  }
+  .field input:focus{ border-color:var(--amber); }
+  .field input::-webkit-outer-spin-button, .field input::-webkit-inner-spin-button{ opacity:1; }
+
+  .derived-hint{ font-size:11.5px; color:var(--muted); margin-top:-2px; margin-bottom:10px; min-height:14px; }
+  .derived-hint b{ color:var(--amber); font-weight:600; }
+
+  button.primary{
+    width:100%; padding:13px; border:none; border-radius:10px;
+    background:var(--amber); color:#191207; font-weight:700; font-size:14px;
+    text-transform:uppercase; letter-spacing:0.6px; cursor:pointer;
+    transition:filter .15s;
+  }
+  button.primary:active{ filter:brightness(0.9); }
+  button.primary:disabled{ background:#3a3f47; color:var(--muted); }
+
+  /* History */
+  .history-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 4px; border-bottom:1px solid var(--line);
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .hi-left .date{ font-size:13px; font-weight:600; }
+  .hi-left .meta{ font-size:11px; color:var(--muted); font-family:'JetBrains Mono'; }
+  .hi-right{ text-align:right; display:flex; align-items:center; gap:10px; }
+  .hi-right .cost{ font-family:'JetBrains Mono'; font-weight:700; font-size:14px; }
+  .hi-right .l100{ font-size:11px; padding:2px 7px; border-radius:6px; font-weight:600; }
+  .l100.good{ background:#1c3a2a; color:var(--green); }
+  .l100.bad{ background:#3a1f1c; color:var(--red); }
+  .l100.neutral{ background:#2b2f36; color:var(--muted); }
+  .del-btn{
+    background:none; border:none; color:#5a616c; font-size:16px; cursor:pointer; padding:2px 4px;
+  }
+  .del-btn:active{ color:var(--red); }
+
+  .empty{ text-align:center; color:var(--muted); font-size:13px; padding:20px 0; }
+
+  .totals-bar{
+    display:flex; justify-content:space-between; padding:10px 4px 0; margin-top:4px;
+    border-top:1px dashed var(--line); font-size:12px; color:var(--muted);
+  }
+  .totals-bar b{ color:var(--text); font-family:'JetBrains Mono'; }
+
+  footer{ text-align:center; color:#4a505a; font-size:11px; margin-top:24px; }
+
+  .btn-row{ display:flex; gap:10px; }
+  button.secondary{
+    flex:1; padding:12px 8px; border-radius:10px; background:var(--surface-2);
+    border:1px solid var(--line); color:var(--text); font-weight:600; font-size:13px; cursor:pointer;
+  }
+  button.secondary:active{ border-color:var(--amber); color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Control<span>Gasolina</span></h1>
+      <div class="sub">Gestión de combustible · 3 vehículos</div>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="cluster">
+    <div class="cluster-top">
+      <div class="name" id="clusterName">—</div>
+      <div class="odo" id="clusterOdo">0 km</div>
+    </div>
+    <div class="gauge-row">
+      <div class="gauge-wrap" id="gaugeWrap"></div>
+      <div class="stats-mini">
+        <div class="stat">
+          <div class="label">Gastado total</div>
+          <div class="value" id="stTotal">0<span class="unit">€</span></div>
+        </div>
+        <div class="stat">
+          <div class="label">€ / km</div>
+          <div class="value small" id="stPerKm">—</div>
+        </div>
+        <div class="stat">
+          <div class="label">Consumo global</div>
+          <div class="value small" id="stAvg">— <span class="unit">l/100km</span></div>
+        </div>
+        <div class="stat">
+          <div class="label">Repostajes</div>
+          <div class="value small" id="stCount">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Nuevo repostaje</h2>
+    <div class="field-row">
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="inDate">
+      </div>
+      <div class="field">
+        <label>Kilómetros (odómetro)</label>
+        <input type="number" id="inOdo" placeholder="ej. 45230" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Litros</label>
+        <input type="number" step="0.01" id="inLitros" placeholder="ej. 38.5" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Precio total (€)</label>
+        <input type="number" step="0.01" id="inPrecio" placeholder="ej. 58.30" inputmode="decimal">
+      </div>
+    </div>
+    <div class="derived-hint" id="derivedHint">&nbsp;</div>
+    <button class="primary" id="addBtn">Añadir repostaje</button>
+  </div>
+
+  <div class="card">
+    <h2>Historial</h2>
+    <div id="historyList"></div>
+    <div class="totals-bar" id="totalsBar" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Copia de seguridad</h2>
+    <div class="btn-row">
+      <button class="secondary" id="exportBtn">⬇ Exportar datos</button>
+      <button class="secondary" id="importBtn">⬆ Importar datos</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <div class="derived-hint" id="backupMsg" style="margin-top:10px;">&nbsp;</div>
+  </div>
+
+  <footer>Los datos se guardan solo en este dispositivo.</footer>
+</div>
+
+<script>
+const STORAGE_KEY = 'control_gasolina_v1';
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {
+    activeVehicle: 0,
+    vehicles: [
+      { name:'Coche 1', entries: [] },
+      { name:'Coche 2', entries: [] },
+      { name:'Moto', entries: [] }
+    ]
+  };
+}
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+let state = loadData();
+
+function currentVehicle(){ return state.vehicles[state.activeVehicle]; }
+
+function sortedEntries(v){
+  return [...v.entries].sort((a,b)=> a.odo - b.odo);
+}
+
+function computeStats(v){
+  const entries = sortedEntries(v);
+  const totalCost = entries.reduce((s,e)=> s+e.precio, 0);
+  const count = entries.length;
+  let totalKm = 0, totalLitrosBetween = 0;
+  const withConsumption = [];
+  for(let i=1;i<entries.length;i++){
+    const prev = entries[i-1], cur = entries[i];
+    const km = cur.odo - prev.odo;
+    if(km > 0 && cur.litros > 0){
+      const l100 = (cur.litros / km) * 100;
+      withConsumption.push({ entry: cur, l100, km });
+      totalKm += km;
+      totalLitrosBetween += cur.litros;
+    }
+  }
+  const avgL100 = (entries.length >= 2 && (entries[entries.length-1].odo - entries[0].odo) > 0)
+    ? ((entries.slice(0, -1).reduce((s,e)=> s+e.litros, 0) / (entries[entries.length-1].odo - entries[0].odo)) * 100)
+    : null;
+  const perKm = totalKm > 0 ? (entries.slice(1).reduce((s,e)=>s+e.precio,0) / totalKm) : null;
+  const lastOdo = entries.length ? entries[entries.length-1].odo : 0;
+  return { totalCost, count, avgL100, perKm, lastOdo, withConsumption };
+}
+
+function fmt(n, decimals=2){
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  return n.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+/* ---------- Gauge (SVG dial) ---------- */
+function renderGauge(avgL100){
+  // Dial de 0 al doble de la media, en un arco de 260 grados
+  const wrap = document.getElementById('gaugeWrap');
+  const max = avgL100 ? Math.max(avgL100 * 1.8, 6) : 12;
+  const val = avgL100 === null ? 0 : Math.min(avgL100, max);
+  const startAngle = -220, endAngle = 40; // degrees, 260 deg sweep pointing down-left to down-right
+  const sweep = 260;
+  const frac = max > 0 ? val / max : 0;
+  const angle = startAngle + frac * sweep;
+
+  function polar(cx,cy,r,deg){
+    const rad = (deg-90) * Math.PI/180;
+    return [cx + r*Math.cos(rad), cy + r*Math.sin(rad)];
+  }
+  const cx=55, cy=55, r=44;
+  const [sx,sy] = polar(cx,cy,r,startAngle);
+  const [ex,ey] = polar(cx,cy,r,startAngle+sweep);
+  const [nx,ny] = polar(cx,cy,r-3, angle);
+
+  const color = avgL100 === null ? '#8B93A1' : '#FFB020';
+
+  wrap.innerHTML = `
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#2C333D" stroke-width="8" stroke-linecap="round"
+      stroke-dasharray="${(sweep/360)*2*Math.PI*r} ${2*Math.PI*r}"
+      transform="rotate(${startAngle+ -90} ${cx} ${cy})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"
+      stroke-dasharray="${(frac*sweep/360)*2*Math.PI*r} ${2*Math.PI*r}"
+      transform="rotate(${startAngle+ -90} ${cx} ${cy})" style="transition: stroke-dasharray .4s ease, stroke .4s ease;"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#E9ECEF" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="#E9ECEF"/>
+    <text x="${cx}" y="${cy+22}" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="700" fill="${color}">${avgL100===null?'—':fmt(avgL100,1)}</text>
+    <text x="${cx}" y="${cy+33}" text-anchor="middle" font-family="Inter" font-size="7" fill="#8B93A1" letter-spacing="0.5">L/100KM</text>
+  </svg>`;
+}
+
+/* ---------- Rendering ---------- */
+function renderTabs(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  state.vehicles.forEach((v, i) => {
+    const el = document.createElement('div');
+    el.className = 'tab' + (i === state.activeVehicle ? ' active' : '');
+    el.innerHTML = `<input class="edit-name" value="${v.name}" data-idx="${i}" readonly><span class="pencil" title="Renombrar">✎</span>`;
+    const input = el.querySelector('input');
+    const pencil = el.querySelector('.pencil');
+
+    // Tocar la pestaña (fuera del lápiz) selecciona el vehículo
+    el.addEventListener('click', (e) => {
+      if(e.target === pencil) return;
+      if(input.classList.contains('editing')) return;
+      state.activeVehicle = i; saveData(); renderAll();
+    });
+
+    // El lápiz activa el modo edición del nombre
+    pencil.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.activeVehicle = i; saveData(); renderTabsOnly();
+      const freshInput = document.querySelectorAll('.edit-name')[i];
+      freshInput.readOnly = false;
+      freshInput.classList.add('editing');
+      freshInput.focus();
+      freshInput.select();
+    });
+
+    input.addEventListener('click', e => {
+      if(!input.classList.contains('editing')) e.preventDefault();
+    });
+    input.addEventListener('blur', e => {
+      state.vehicles[i].name = e.target.value.trim() || ('Vehículo ' + (i+1));
+      saveData(); renderAll();
+    });
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter') e.target.blur();
+    });
+    tabs.appendChild(el);
+  });
+}
+
+function renderTabsOnly(){
+  renderTabs();
+}
+
+function renderCluster(){
+  const v = currentVehicle();
+  const stats = computeStats(v);
+  document.getElementById('clusterName').textContent = v.name;
+  document.getElementById('clusterOdo').textContent = fmt(stats.lastOdo, 0) + ' km';
+  document.getElementById('stTotal').innerHTML = fmt(stats.totalCost,2) + '<span class="unit">€</span>';
+  document.getElementById('stPerKm').innerHTML = stats.perKm !== null ? (fmt(stats.perKm,3) + '<span class="unit">€/km</span>') : '—';
+  document.getElementById('stAvg').innerHTML = stats.avgL100 !== null ? (fmt(stats.avgL100,2) + ' <span class="unit">l/100km</span>') : '—';
+  document.getElementById('stCount').textContent = stats.count;
+
+  renderGauge(stats.avgL100);
+}
+
+function renderHistory(){
+  const v = currentVehicle();
+  const list = document.getElementById('historyList');
+  const bar = document.getElementById('totalsBar');
+  const entries = sortedEntries(v).slice().reverse();
+
+  if(entries.length === 0){
+    list.innerHTML = '<div class="empty">Sin repostajes todavía. Añade el primero arriba.</div>';
+    bar.style.display = 'none';
+    return;
+  }
+
+  const ascending = sortedEntries(v);
+  const l100ByOdo = {};
+  for(let i=1;i<ascending.length;i++){
+    const prev = ascending[i-1], cur = ascending[i];
+    const km = cur.odo - prev.odo;
+    if(km > 0 && cur.litros > 0) l100ByOdo[cur.id] = { l100: (cur.litros/km)*100, km };
+  }
+  const stats = computeStats(v);
+
+  list.innerHTML = '';
+  entries.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    const l100Info = l100ByOdo[e.id];
+    let l100Badge = '<span class="l100 neutral">1er dato</span>';
+    if(l100Info){
+      const cls = stats.avgL100 && l100Info.l100 <= stats.avgL100 ? 'good' : (stats.avgL100 && l100Info.l100 <= stats.avgL100*1.15 ? 'neutral' : 'bad');
+      l100Badge = `<span class="l100 ${cls}">${fmt(l100Info.l100,1)} l/100km</span>`;
+    }
+    const priceLitro = e.litros > 0 ? (e.precio / e.litros) : null;
+    row.innerHTML = `
+      <div class="hi-left">
+        <div class="date">${formatDateDisplay(e.date)}</div>
+        <div class="meta">${fmt(e.odo,0)} km · ${fmt(e.litros,2)} L${priceLitro? ' · '+fmt(priceLitro,3)+' €/L':''}</div>
+      </div>
+      <div class="hi-right">
+        ${l100Badge}
+        <div class="cost">${fmt(e.precio,2)}€</div>
+        <button class="del-btn" data-id="${e.id}" title="Eliminar">✕</button>
+      </div>
+    `;
+    row.querySelector('.del-btn').addEventListener('click', () => {
+      if(confirm('¿Eliminar este repostaje?')){
+        v.entries = v.entries.filter(x => x.id !== e.id);
+        saveData(); renderAll();
+      }
+    });
+    list.appendChild(row);
+  });
+
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span>Total registrado</span><b>${fmt(stats.totalCost,2)} €</b>`;
+}
+
+function formatDateDisplay(iso){
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function updateHint(){
+  const litros = parseFloat(document.getElementById('inLitros').value);
+  const precio = parseFloat(document.getElementById('inPrecio').value);
+  const hint = document.getElementById('derivedHint');
+  if(litros > 0 && precio > 0){
+    hint.innerHTML = `Precio por litro: <b>${fmt(precio/litros,3)} €/L</b>`;
+  } else {
+    hint.innerHTML = '&nbsp;';
+  }
+}
+
+function renderAll(){
+  renderTabs();
+  renderCluster();
+  renderHistory();
+}
+
+/* ---------- Add entry ---------- */
+document.getElementById('inLitros').addEventListener('input', updateHint);
+document.getElementById('inPrecio').addEventListener('input', updateHint);
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const date = document.getElementById('inDate').value;
+  const odo = parseFloat(document.getElementById('inOdo').value);
+  const litros = parseFloat(document.getElementById('inLitros').value);
+  const precio = parseFloat(document.getElementById('inPrecio').value);
+
+  if(!date || isNaN(odo) || isNaN(litros) || isNaN(precio) || odo < 0 || litros <= 0 || precio <= 0){
+    alert('Por favor, completa todos los campos con valores válidos.');
+    return;
+  }
+
+  const v = currentVehicle();
+  const exists = v.entries.some(e => e.odo === odo);
+  if(exists){
+    alert('Ya existe un repostaje con ese kilometraje para este vehículo.');
+    return;
+  }
+
+  v.entries.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date, odo, litros, precio });
+  saveData();
+
+  document.getElementById('inOdo').value = '';
+  document.getElementById('inLitros').value = '';
+  document.getElementById('inPrecio').value = '';
+  updateHint();
+  renderAll();
+});
+
+// Default date to today
+document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
+
+/* ---------- Exportar / Importar ---------- */
+function backupMsg(t){ document.getElementById('backupMsg').textContent = t; }
+
+async function exportData(){
+  const payload = JSON.stringify({ app:'control-gasolina', version:1, exportedAt:new Date().toISOString(), data: state }, null, 2);
+  const name = 'control-gasolina-' + new Date().toISOString().slice(0,10) + '.json';
+  const cap = window.Capacitor;
+  if(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.Plugins.Filesystem && cap.Plugins.Share){
+    try{
+      const r = await cap.Plugins.Filesystem.writeFile({ path:name, data:payload, directory:'CACHE', encoding:'utf8' });
+      await cap.Plugins.Share.share({ title:'Copia de seguridad', url:r.uri, dialogTitle:'Guardar copia de seguridad' });
+      backupMsg('Copia exportada.');
+    }catch(e){ backupMsg('No se pudo exportar: ' + (e && e.message ? e.message : e)); }
+    return;
+  }
+  const blob = new Blob([payload], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  backupMsg('Copia exportada: ' + name);
+}
+
+function validateBackup(obj){
+  const d = obj && obj.data ? obj.data : obj;
+  if(!d || !Array.isArray(d.vehicles) || d.vehicles.length !== 3) return null;
+  const vehicles = [];
+  for(const v of d.vehicles){
+    if(!v || !Array.isArray(v.entries)) return null;
+    const entries = [];
+    for(const e of v.entries){
+      const odo = Number(e.odo), litros = Number(e.litros), precio = Number(e.precio);
+      if(!e || typeof e.date !== 'string' || !isFinite(odo) || !isFinite(litros) || !isFinite(precio)) return null;
+      entries.push({ id: e.id || (Date.now().toString(36)+Math.random().toString(36).slice(2,6)), date:e.date, odo, litros, precio });
+    }
+    vehicles.push({ name: String(v.name || 'Vehículo'), entries });
+  }
+  const av = Number(d.activeVehicle);
+  return { activeVehicle: (av >= 0 && av < 3) ? av : 0, vehicles };
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed = null;
+    try{ parsed = validateBackup(JSON.parse(reader.result)); }catch(e){}
+    if(!parsed){ backupMsg('El archivo no es una copia válida.'); return; }
+    const total = parsed.vehicles.reduce((s,v)=> s + v.entries.length, 0);
+    if(!confirm('Se van a REEMPLAZAR los datos actuales por los de la copia (' + total + ' repostajes). ¿Continuar?')){
+      backupMsg('Importación cancelada.'); return;
+    }
+    state = parsed; saveData(); renderAll();
+    backupMsg('Datos importados: ' + total + ' repostajes.');
+  };
+  reader.onerror = () => backupMsg('No se pudo leer el archivo.');
+  reader.readAsText(file);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportData);
+document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if(f) importData(f);
+  e.target.value = '';
+});
+
+renderAll();
+
+</script>
+</body>
+</html>
